@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stopwatch & Transcriber</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">   
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"> 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Afacad+Flux:wght@100..1000&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #FBF3D5;
+            margin: 0;
+            padding: 50px;
+            color: #9CAFAA;
+        }
+        
+        h1 {
+            font-size: 3em;
+            color: #9CAFAA;
+            margin-bottom: 20px;
+            transition: color 0.3s ease-in-out;
+            font-family: "Great Vibes", cursive;
+        }
+        
+        #stopwatch {
+            font-size: 3em;
+            margin: 20px 0;
+            color: #EFBC9B;
+            font-family: "Bebas Neue", sans-serif;
+            font-weight: 400;
+        }
+        
+        #transcription {
+            border: 2px solid #D6DAC8;
+            padding: 20px;
+            width: 60%;
+            margin: 20px auto;
+            min-height: 150px;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        
+        button {
+            font-size: 1.2em;
+            padding: 15px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #ffffff;
+            transition: background-color 0.3s ease-in-out, transform 0.3s ease-in-out;
+            font-family: "Poppins", sans-serif;
+            font-weight: 600;
+        }
+        
+        #toggleButton {
+            background-color: #9CAFAA;
+        }
+        
+        #clearButton {
+            background-color: #EFBC9B;
+            font-family: "Poppins", sans-serif;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+        
+        button:active {
+            transform: scale(1);
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stopwatch & Transcriber</h1>
+    <div id="stopwatch">00:00:00</div>
+    <button id="toggleButton">Start</button>
+    <button id="clearButton" disabled>Clear</button>
+    <div id="transcription" placeholder="Transcription will appear here..."></div>
+    
+    <script>
+        let startTime, updatedTime, difference, tInterval;
+        let running = false;
+        const stopwatchDisplay = document.getElementById("stopwatch");
+
+        function startStopwatch() {
+            startTime = new Date().getTime();
+            tInterval = setInterval(updateTime, 1000);
+            running = true;
+        }
+
+        function stopStopwatch() {
+            clearInterval(tInterval);
+            running = false;
+        }
+
+        function resetStopwatch() {
+            stopwatchDisplay.textContent = "00:00:00";
+        }
+
+        function updateTime() {
+            updatedTime = new Date().getTime();
+            difference = updatedTime - startTime;
+
+            let hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            let minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            let seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+            hours = (hours < 10) ? "0" + hours : hours;
+            minutes = (minutes < 10) ? "0" + minutes : minutes;
+            seconds = (seconds < 10) ? "0" + seconds : seconds;
+
+            stopwatchDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        const transcriptionDisplay = document.getElementById("transcription");
+        const toggleButton = document.getElementById("toggleButton");
+        const clearButton = document.getElementById("clearButton");
+
+        let recognition;
+        let isRecognizing = false;
+        let fullTranscript = "";
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+        } else if ('SpeechRecognition' in window) {
+            recognition = new SpeechRecognition();
+        } else {
+            alert("Speech Recognition not supported in this browser.");
+        }
+
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    fullTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+            transcriptionDisplay.textContent = fullTranscript + interimTranscript;
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error detected: " + event.error);
+            stopStopwatch();
+            recognition.stop();
+            isRecognizing = false;
+            toggleButton.textContent = "Start";
+            toggleButton.disabled = false;
+        };
+
+        recognition.onend = () => {
+            console.log("Speech recognition service disconnected");
+            isRecognizing = false;
+            toggleButton.textContent = "Start";
+            toggleButton.disabled = false;
+        };
+
+        toggleButton.addEventListener('click', () => {
+            if (!isRecognizing) {
+                startStopwatch();
+                recognition.start();
+                isRecognizing = true;
+                toggleButton.textContent = "Stop";
+                clearButton.disabled = true; 
+            } else {
+                stopStopwatch();
+                recognition.stop();
+                isRecognizing = false;
+                toggleButton.textContent = "Start";
+                clearButton.disabled = false;
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            resetStopwatch();
+            fullTranscript = "";
+            transcriptionDisplay.textContent = "";
+        });
+    </script>
+</body>
+</html>
